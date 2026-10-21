@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>집 가고 싶다 - 3D 젤리 벽돌깨기</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Pretendard:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Jua', 'Pretendard', sans-serif;
+            background: linear-gradient(135deg, #fff0f3 0%, #ffe3e8 50%, #fcc2d7 100%);
+            touch-action: none;
+        }
+        .jelly-title {
+            text-shadow: 2px 2px 0px #ffffff, 4px 4px 0px #f48fb1, 6px 6px 0px rgba(194, 24, 91, 0.3);
+        }
+        .sweet-card {
+            box-shadow: 0 20px 45px rgba(244, 143, 177, 0.35), inset 0 0 20px rgba(255, 255, 255, 0.9);
+        }
+        .btn-jelly {
+            background: linear-gradient(180deg, #ff80ab 0%, #ff4081 100%);
+            box-shadow: 0 6px 0px #c2185b, 0 10px 15px rgba(255, 64, 129, 0.3);
+            transition: all 0.1s ease;
+        }
+        .btn-jelly:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0px #c2185b, 0 12px 18px rgba(255, 64, 129, 0.4);
+        }
+        .btn-jelly:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0px #c2185b, 0 4px 8px rgba(255, 64, 129, 0.3);
+        }
+    </style>
+</head>
+<body class="text-slate-700 h-screen w-screen overflow-hidden flex flex-col items-center justify-center select-none p-2 md:p-4">
+
+    <!-- 메인 게임 컨테이너 -->
+    <div class="relative w-full max-w-lg h-full max-h-[860px] flex flex-col bg-white/90 backdrop-blur-md rounded-3xl sweet-card border-4 border-white overflow-hidden">
+        
+        <!-- 상단 헤더: 점수, 서울 날씨, 최고 점수, 남은 생명 -->
+        <div class="flex justify-between items-center px-4 py-3 bg-pink-100/90 border-b-2 border-pink-200/90 z-10 text-base">
+            <div class="flex flex-col">
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-xs text-pink-500 font-bold tracking-wider">점수</span>
+                    <!-- 오늘 서울 날씨 배지 -->
+                    <span id="weather-display" class="text-xs font-bold text-pink-700 bg-pink-200/80 px-2 py-0.5 rounded-full border border-pink-300">
+                        ☀️ 날씨 확인 중...
+                    </span>
+                </div>
+                <span id="scoreDisplay" class="text-2xl font-black text-pink-600 leading-tight">0</span>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-amber-600 font-bold tracking-wider">👑 최고 기록</span>
+                <span id="highScoreDisplay" class="text-2xl font-black text-amber-500 leading-tight">0</span>
+            </div>
+            
+            <div class="flex flex-col items-end">
+                <span class="text-xs text-pink-500 font-bold tracking-wider">남은 생명</span>
+                <div id="livesContainer" class="flex space-x-1 mt-1">
+                    <!-- 생명 아이콘 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 캔버스 영역 -->
+        <div class="relative flex-1 w-full bg-gradient-to-b from-pink-50/70 via-pink-100/40 to-purple-50/60 overflow-hidden">
+            <canvas id="gameCanvas" class="block w-full h-full cursor-none"></canvas>
+
+            <!-- 시작 / 대기 화면 -->
+            <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm z-20 p-5 text-center overflow-y-auto">
+                <div class="inline-block px-4 py-1.5 bg-pink-200/80 border border-pink-300 rounded-full text-pink-600 text-xs md:text-sm font-bold mb-1.5">
+                    🎒 쉬는 시간 칼퇴 도전기!
+                </div>
+                <h1 class="text-4xl md:text-5xl font-black text-pink-500 jelly-title mb-1.5 tracking-wide">
+                    집 가고 싶다
+                </h1>
+
+                <!-- 날씨 테스트 컨트롤 박스 -->
+                <div class="w-full max-w-xs bg-pink-100/90 border-2 border-pink-300 rounded-2xl p-3 mb-2.5 shadow-sm flex flex-col items-center">
+                    <div class="text-xs font-bold text-pink-800 mb-1.5 flex items-center gap-1">
+                        <span>🧪</span> <span>기온 수동 테스트 설정</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2 w-full justify-center">
+                        <input type="number" id="manualTempInput" placeholder="25" class="w-20 px-2 py-1 text-center font-bold text-pink-700 bg-white rounded-xl border border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm">
+                        <span class="font-bold text-pink-700 text-sm">°C</span>
+                        <button onclick="applyManualTemperature()" class="px-3 py-1 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs rounded-xl shadow transition-colors">
+                            적용
+                        </button>
+                    </div>
+
+                    <!-- 날씨 알림 메시지 상자 -->
+                    <div id="weatherNoticeBox" class="w-full bg-white/80 border border-pink-200 rounded-xl p-2 text-pink-800 text-xs font-bold text-center leading-tight">
+                        🌡️ 날씨 정보를 읽어오는 중입니다...
+                    </div>
+                </div>
+
+                <p class="text-xs md:text-sm text-pink-700/90 max-w-xs mb-3 leading-relaxed font-sans font-semibold">
+                    🍬 일반 젤리: 1번 (+10점)<br>
+                    💎 단단한 젤리: <span class="text-pink-600 font-black">2번</span> 때려야 깨짐 (+20점)<br>
+                    🎁 아이템: <span class="text-purple-600 font-black">패들 확장(↔)</span> & <span class="text-pink-600 font-black">공 2개(⚽)</span><br>
+                    🚀 레벨을 다 깨면 더 빠른 <span class="text-indigo-600 font-black">2단계</span> 진행!<br>
+                    <span class="text-pink-600 font-bold">← → 방향키</span>로 알사탕을 튕기세요!
+                </p>
+
+                <button id="startBtn" onclick="startGame()" class="btn-jelly px-8 py-3 text-white text-lg font-bold rounded-2xl">
+                    🍬 게임 시작!
+                </button>
+            </div>
+
+            <!-- 레벨 클리어 알림 -->
+            <div id="stageClearBanner" class="absolute inset-0 hidden flex flex-col items-center justify-center bg-white/80 backdrop-blur-md z-30 p-6 text-center">
+                <h2 class="text-4xl font-black text-purple-600 jelly-title mb-2">🎉 레벨 1 클리어!</h2>
+                <p class="text-pink-700 text-base font-bold mb-4 font-sans">2단계는 알사탕과 젤리가 훨씬 빨라집니다!</p>
+                <div class="inline-block px-6 py-2 bg-purple-100 border-2 border-purple-300 rounded-2xl text-purple-700 text-lg font-black animate-pulse">
+                    🚀 레벨 2 시작 준비 중...
+                </div>
+            </div>
+
+            <!-- 게임 오버 화면 -->
+            <div id="gameOverScreen" class="absolute inset-0 hidden flex flex-col items-center justify-center bg-white/90 backdrop-blur-md z-20 p-6 text-center">
+                <h2 id="gameOverTitle" class="text-4xl font-black text-pink-500 jelly-title mb-2">오늘 야자 확정...</h2>
+                <p class="text-pink-700 text-base mb-1 font-sans">최종 점수</p>
+                <p id="finalScore" class="text-5xl font-black text-pink-600 mb-4">0</p>
+                
+                <div id="newHighRecord" class="hidden mb-5 px-5 py-2 bg-amber-100 border-2 border-amber-300 rounded-full text-amber-600 text-sm font-bold animate-bounce">
+                    🎉 축하합니다! 최고 기록 경신!
+                </div>
+
+                <button onclick="startGame()" class="btn-jelly px-8 py-3 text-white text-lg font-bold rounded-2xl">
+                    🔄 다시 집 가기 도전!
+                </button>
+            </div>
+        </div>
+
+        <!-- 하단 조작 안내 -->
+        <div class="py-2.5 px-5 bg-pink-100/90 border-t-2 border-pink-200/90 flex justify-between items-center text-xs font-sans text-pink-700/80 font-bold">
+            <span>조작: <strong class="text-pink-600 font-black">← → 방향키</strong></span>
+            <span id="stageTag" class="text-purple-600 font-black">STAGE 1</span>
+        </div>
+    </div>
+
+    <script>
+        let weatherSpeedMultiplier = 1.0;
+        let seoulTemperature = null;
+
+        function applyTemperature(temp, isManual = false) {
+            seoulTemperature = temp;
+            const weatherElement = document.getElementById('weather-display');
+            const noticeBox = document.getElementById('weatherNoticeBox');
+            const inputField = document.getElementById('manualTempInput');
+
+            if (inputField && isManual) {
+                inputField.value = temp;
+            }
+
+            const prefix = isManual ? '🧪 테스트 기온 ' : '오늘 서울 ';
+            weatherElement.innerText = `${prefix}${temp}°C`;
+
+            if (temp >= 25) {
+                weatherSpeedMultiplier = 1.3;
+                noticeBox.innerText = `🌡️ ${temp}°C: 더워서 공이 엄청 빨라져요! (+30% 🔥)`;
+            } else if (temp < 10) {
+                weatherSpeedMultiplier = 0.8;
+                noticeBox.innerText = `❄️ ${temp}°C: 추워서 공이 얼어 천천히 움직여요! (-20% 🧊)`;
+            } else {
+                weatherSpeedMultiplier = 1.0;
+                noticeBox.innerText = `🌤️ ${temp}°C: 쾌적한 날씨라 공이 기본 속도로 움직여요!`;
+            }
+        }
+
+        function applyManualTemperature() {
+            const val = document.getElementById('manualTempInput').value;
+            if (val === '' || isNaN(val)) {
+                alert('숫자 기온을 입력해주세요!');
+                return;
+            }
+            const temp = Math.round(parseFloat(val));
+            applyTemperature(temp, true);
+        }
+
+        async function fetchWeather() {
+            const primaryUrl = 'https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current_weather=true';
+            const backupUrl = 'https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m';
+
+            try {
+                let temp = null;
+
+                let response = await fetch(primaryUrl);
+                if (response.ok) {
+                    let data = await response.json();
+                    if (data && data.current_weather && typeof data.current_weather.temperature === 'number') {
+                        temp = Math.round(data.current_weather.temperature);
+                    }
+                }
+
+                if (temp === null) {
+                    response = await fetch(backupUrl);
+                    if (response.ok) {
+                        let data = await response.json();
+                        if (data && data.current && typeof data.current.temperature_2m === 'number') {
+                            temp = Math.round(data.current.temperature_2m);
+                        }
+                    }
+                }
+
+                if (temp !== null) {
+                    document.getElementById('manualTempInput').value = temp;
+                    applyTemperature(temp, false);
+                    return;
+                }
+
+                throw new Error('날씨 데이터 없음');
+            } catch (error) {
+                console.warn('날씨 API 불러오기 실패:', error);
+                document.getElementById('weather-display').innerText = '날씨 정보를 불러올 수 없어요';
+                document.getElementById('manualTempInput').value = 20;
+                applyTemperature(20, true);
+            }
+        }
+
+        fetchWeather();
+
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'paddle') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(380, now);
+                    osc.frequency.exponentialRampToValueAtTime(750, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'brick') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(550, now);
+                    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.1);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'hard_hit') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'item') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.18);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'wall') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(320, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'life') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(140, now + 0.25);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'clear') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(f, now + i * 0.08);
+                        g.gain.setValueAtTime(0.2, now + i * 0.08);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.15);
+                        o.start(now + i * 0.08);
+                        o.stop(now + i * 0.08 + 0.15);
+                    });
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let gameState = 'START';
+        let score = 0;
+        let lives = 3;
+        let stage = 1;
+
+        let highScore = parseInt(localStorage.getItem('gohome_high_score') || '0');
+        document.getElementById('highScoreDisplay').innerText = highScore;
+
+        const defaultPaddleWidth = 96;
+        const paddle = {
+            width: defaultPaddleWidth,
+            height: 16,
+            x: 0,
+            y: 0,
+            speed: 8.5
+        };
+
+        let balls = [];
+
+        function createBall(x, y, dx, dy, isStuck = false) {
+            return {
+                x, y,
+                radius: 9,
+                dx, dy,
+                isStuck,
+                stripeAngle: 0
+            };
+        }
+
+        let items = [];
+
+        const jelly3DPalette = [
+            { main: '#ff5277', top: '#ff9ebb', bottom: '#d81b43', border: '#b00028' },
+            { main: '#26c6da', top: '#80deea', bottom: '#0097a7', border: '#006064' },
+            { main: '#ffa726', top: '#ffe082', bottom: '#f57c00', border: '#e65100' },
+            { main: '#42a5f5', top: '#90caf9', bottom: '#1976d2', border: '#0d47a1' },
+            { main: '#ffee58', top: '#fff59d', bottom: '#fbc02d', border: '#f57f17' },
+            { main: '#ab47bc', top: '#ce93d8', bottom: '#7b1fa2', border: '#4a148c' }
+        ];
+
+        const hardJellyPalette = {
+            main: '#78909c', top: '#b0bec5', bottom: '#455a64', border: '#263238'
+        };
+
+        let brickRows = 5;
+        let brickCols = 6;
+        let bricks = [];
+        let particles = [];
+
+        function createJellyParticles(x, y, color) {
+            for (let i = 0; i < 14; i++) {
+                particles.push({
+                    x, y,
+                    dx: (Math.random() - 0.5) * 7,
+                    dy: (Math.random() - 0.5) * 7,
+                    radius: Math.random() * 4 + 2,
+                    color: color || '#ff5277',
+                    alpha: 1,
+                    decay: 0.035
+                });
+            }
+        }
+
+        let rightPressed = false;
+        let leftPressed = false;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Right') rightPressed = true;
+            if (e.key === 'ArrowLeft' || e.key === 'Left') leftPressed = true;
+            
+            if ((e.code === 'Space' || e.key === 'ArrowUp') && gameState === 'PLAYING') {
+                releaseStuckBalls();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Right') rightPressed = false;
+            if (e.key === 'ArrowLeft' || e.key === 'Left') leftPressed = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            paddle.x = e.clientX - rect.left - paddle.width / 2;
+            clampPaddle();
+            moveStuckBalls();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            paddle.x = e.touches[0].clientX - rect.left - paddle.width / 2;
+            clampPaddle();
+            moveStuckBalls();
+        }, { passive: false });
+
+        canvas.addEventListener('click', () => {
+            if (gameState === 'PLAYING') releaseStuckBalls();
+        });
+
+        function clampPaddle() {
+            if (paddle.x < 0) paddle.x = 0;
+            if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+        }
+
+        function moveStuckBalls() {
+            balls.forEach(b => {
+                if (b.isStuck) {
+                    b.x = paddle.x + paddle.width / 2;
+                }
+            });
+        }
+
+        function releaseStuckBalls() {
+            balls.forEach(b => {
+                if (b.isStuck) {
+                    b.isStuck = false;
+                    const baseSpeed = (5 + (stage - 1) * 2.2) * weatherSpeedMultiplier;
+                    b.dy = -baseSpeed;
+                    b.dx = (Math.random() - 0.5) * baseSpeed * 0.8;
+                }
+            });
+        }
+
+        function initBricks() {
+            bricks = [];
+            const padding = 8;
+            const offsetTop = 45;
+            const offsetLeft = 14;
+            const totalWidth = canvas.width - offsetLeft * 2;
+            
+            brickRows = stage === 1 ? 5 : 6;
+            const brickWidth = (totalWidth - (brickCols - 1) * padding) / brickCols;
+            const brickHeight = 24;
+
+            for (let c = 0; c < brickCols; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRows; r++) {
+                    const isHard = (stage === 1 && (r === 1 && (c === 1 || c === 4))) ||
+                                   (stage === 2 && (r === 1 || r === 3) && (c % 2 === 1));
+
+                    const hitsMax = isHard ? 2 : 1;
+                    const paletteIndex = (r + c) % jelly3DPalette.length;
+
+                    let itemType = null;
+                    const rand = Math.random();
+                    if (rand < 0.18) itemType = 'EXPAND';
+                    else if (rand < 0.35) itemType = 'MULTI';
+
+                    bricks[c][r] = {
+                        x: offsetLeft + c * (brickWidth + padding),
+                        y: offsetTop + r * (brickHeight + padding),
+                        width: brickWidth,
+                        height: brickHeight,
+                        status: 1,
+                        hits: hitsMax,
+                        hitsMax: hitsMax,
+                        palette: isHard ? hardJellyPalette : jelly3DPalette[paletteIndex],
+                        item: itemType
+                    };
+                }
+            }
+        }
+
+        function updateLivesUI() {
+            const container = document.getElementById('livesContainer');
+            container.innerHTML = '';
+            for (let i = 0; i < lives; i++) {
+                container.innerHTML += `<span class="text-xl leading-none">❤️</span>`;
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('stageClearBanner').classList.add('hidden');
+            document.getElementById('newHighRecord').classList.add('hidden');
+
+            score = 0;
+            lives = 3;
+            stage = 1;
+            paddle.width = defaultPaddleWidth;
+
+            document.getElementById('scoreDisplay').innerText = score;
+            document.getElementById('stageTag').innerText = `STAGE ${stage}`;
+            updateLivesUI();
+
+            resetPositions();
+            initBricks();
+            gameState = 'PLAYING';
+        }
+
+        function startStage2() {
+            stage = 2;
+            document.getElementById('stageTag').innerText = `STAGE 2 (FAST!)`;
+            document.getElementById('stageClearBanner').classList.add('hidden');
+            paddle.width = defaultPaddleWidth;
+            resetPositions();
+            initBricks();
+            gameState = 'PLAYING';
+        }
+
+        function resetPositions() {
+            paddle.y = canvas.height - 35;
+            paddle.x = canvas.width / 2 - paddle.width / 2;
+            items = [];
+            balls = [createBall(canvas.width / 2, paddle.y - 12, 0, 0, true)];
+        }
+
+        function spawnExtraBall() {
+            const baseBall = balls[0] || { x: paddle.x + paddle.width / 2, y: paddle.y - 12 };
+            const speed = (5 + (stage - 1) * 2.2) * weatherSpeedMultiplier;
+            balls.push(createBall(
+                baseBall.x,
+                baseBall.y,
+                (Math.random() - 0.5) * speed * 1.2,
+                -speed,
+                false
+            ));
+        }
+
+        function checkCollisions() {
+            let activeBricks = 0;
+
+            for (let c = 0; c < brickCols; c++) {
+                for (let r = 0; r < brickRows; r++) {
+                    const b = bricks[c][r];
+                    if (b.status === 1) {
+                        activeBricks++;
+
+                        balls.forEach(ball => {
+                            if (
+                                ball.x + ball.radius > b.x &&
+                                ball.x - ball.radius < b.x + b.width &&
+                                ball.y + ball.radius > b.y &&
+                                ball.y - ball.radius < b.y + b.height
+                            ) {
+                                ball.dy = -ball.dy;
+                                b.hits--;
+
+                                if (b.hits <= 0) {
+                                    b.status = 0;
+                                    const gainedScore = b.hitsMax === 2 ? 20 : 10;
+                                    score += gainedScore;
+                                    document.getElementById('scoreDisplay').innerText = score;
+
+                                    playSound('brick');
+                                    createJellyParticles(b.x + b.width / 2, b.y + b.height / 2, b.palette.main);
+
+                                    if (b.item) {
+                                        items.push({
+                                            x: b.x + b.width / 2,
+                                            y: b.y + b.height / 2,
+                                            type: b.item,
+                                            radius: 12,
+                                            dy: 2.2
+                                        });
+                                    }
+                                } else {
+                                    playSound('hard_hit');
+                                    createJellyParticles(b.x + b.width / 2, b.y + b.height / 2, '#ffffff');
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            if (activeBricks === 0 && gameState === 'PLAYING') {
+                playSound('clear');
+                if (stage === 1) {
+                    gameState = 'CLEAR';
+                    document.getElementById('stageClearBanner').classList.remove('hidden');
+                    setTimeout(() => {
+                        startStage2();
+                    }, 2500);
+                } else {
+                    gameOver(true);
+                }
+            }
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            if (rightPressed) {
+                paddle.x += paddle.speed;
+                clampPaddle();
+                moveStuckBalls();
+            } else if (leftPressed) {
+                paddle.x -= paddle.speed;
+                clampPaddle();
+                moveStuckBalls();
+            }
+
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const b = balls[i];
+
+                if (!b.isStuck) {
+                    b.x += b.dx;
+                    b.y += b.dy;
+                    b.stripeAngle += 0.05;
+
+                    if (b.x - b.radius < 0) {
+                        b.x = b.radius;
+                        b.dx = -b.dx;
+                        playSound('wall');
+                    } else if (b.x + b.radius > canvas.width) {
+                        b.x = canvas.width - b.radius;
+                        b.dx = -b.dx;
+                        playSound('wall');
+                    }
+
+                    if (b.y - b.radius < 0) {
+                        b.y = b.radius;
+                        b.dy = -b.dy;
+                        playSound('wall');
+                    }
+
+                    if (
+                        b.y + b.radius >= paddle.y &&
+                        b.y - b.radius <= paddle.y + paddle.height &&
+                        b.x >= paddle.x &&
+                        b.x <= paddle.x + paddle.width
+                    ) {
+                        playSound('paddle');
+                        const hitPoint = (b.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2);
+                        const speed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                        const angle = hitPoint * (Math.PI / 3.2);
+
+                        b.dx = speed * Math.sin(angle);
+                        b.dy = -speed * Math.cos(angle);
+                        b.y = paddle.y - b.radius;
+                    }
+
+                    if (b.y - b.radius > canvas.height) {
+                        balls.splice(i, 1);
+                    }
+                }
+            }
+
+            if (balls.length === 0) {
+                lives--;
+                updateLivesUI();
+                playSound('life');
+
+                if (lives <= 0) {
+                    gameOver(false);
+                } else {
+                    resetPositions();
+                }
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const it = items[i];
+                it.y += it.dy;
+
+                if (
+                    it.y + it.radius >= paddle.y &&
+                    it.y - it.radius <= paddle.y + paddle.height &&
+                    it.x >= paddle.x &&
+                    it.x <= paddle.x + paddle.width
+                ) {
+                    playSound('item');
+                    if (it.type === 'EXPAND') {
+                        paddle.width = Math.min(canvas.width * 0.5, paddle.width + 32);
+                    } else if (it.type === 'MULTI') {
+                        spawnExtraBall();
+                    }
+                    items.splice(i, 1);
+                    continue;
+                }
+
+                if (it.y - it.radius > canvas.height) {
+                    items.splice(i, 1);
+                }
+            }
+
+            checkCollisions();
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function gameOver(isWin = false) {
+            gameState = 'GAMEOVER';
+            document.getElementById('finalScore').innerText = score;
+            
+            const titleEl = document.getElementById('gameOverTitle');
+            if (isWin) {
+                titleEl.innerText = "🎉 전 스테이지 칼퇴 성공!";
+            } else {
+                titleEl.innerText = "오늘 야자 확정...";
+            }
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('gohome_high_score', highScore.toString());
+                document.getElementById('highScoreDisplay').innerText = highScore;
+                document.getElementById('newHighRecord').classList.remove('hidden');
+            }
+
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        function drawVolumetric3DJellyBrick(b) {
+            ctx.save();
+
+            const x = b.x;
+            const y = b.y;
+            const w = b.width;
+            const h = b.height;
+            const r = 6;
+            const p = b.palette;
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 3;
+
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+            ctx.fillStyle = p.main;
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+
+            ctx.beginPath();
+            ctx.roundRect(x + 2, y + h - 5, w - 4, 3, [0, 0, 4, 4]);
+            ctx.fillStyle = p.bottom;
+            ctx.fill();
+
+            const topGrad = ctx.createLinearGradient(x, y, x, y + h * 0.5);
+            topGrad.addColorStop(0, p.top);
+            topGrad.addColorStop(1, 'transparent');
+
+            ctx.beginPath();
+            ctx.roundRect(x + 2, y + 2, w - 4, h * 0.45, [4, 4, 2, 2]);
+            ctx.fillStyle = topGrad;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.ellipse(x + 8, y + 6, 5, 2, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.fill();
+
+            if (b.hitsMax === 2) {
+                if (b.hits === 2) {
+                    ctx.fillStyle = '#ffe082';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('💎', x + w / 2, y + h / 2 + 3);
+                } else if (b.hits === 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + 6, y + 4);
+                    ctx.lineTo(x + w * 0.4, y + h * 0.6);
+                    ctx.lineTo(x + w * 0.7, y + 5);
+                    ctx.lineTo(x + w - 6, y + h - 4);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.stroke();
+                }
+            }
+
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = p.border;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawItems() {
+            items.forEach(it => {
+                ctx.save();
+                ctx.translate(it.x, it.y);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, it.radius, 0, Math.PI * 2);
+                ctx.fillStyle = it.type === 'EXPAND' ? '#ab47bc' : '#ff4081';
+                ctx.fill();
+
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(it.type === 'EXPAND' ? '↔' : '⚽', 0, 1);
+
+                ctx.restore();
+            });
+        }
+
+        function drawCandyBall(b) {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+
+            const grad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, 1, 0, 0, b.radius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.2, '#ff6699');
+            grad.addColorStop(0.8, '#ff0055');
+            grad.addColorStop(1, '#cc0044');
+
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.save();
+            ctx.rotate(b.stripeAngle);
+            ctx.beginPath();
+            ctx.arc(0, 0, b.radius - 1, 0, Math.PI * 2);
+            ctx.clip();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = 2.5;
+            for (let i = -b.radius; i <= b.radius; i += 6) {
+                ctx.beginPath();
+                ctx.moveTo(i, -b.radius);
+                ctx.lineTo(i + 6, b.radius);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.arc(-b.radius * 0.35, -b.radius * 0.35, b.radius * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPaddle() {
+            ctx.save();
+
+            const grad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.height);
+            grad.addColorStop(0, '#ffd1dc');
+            grad.addColorStop(0.5, '#ff6699');
+            grad.addColorStop(1, '#e6005c');
+
+            ctx.shadowColor = 'rgba(230, 0, 92, 0.3)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
+
+            ctx.beginPath();
+            ctx.roundRect(paddle.x, paddle.y, paddle.width, paddle.height, 8);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(paddle.x + 6, paddle.y + paddle.height / 2, 3, 0, Math.PI * 2);
+            ctx.arc(paddle.x + paddle.width - 6, paddle.y + paddle.height / 2, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let c = 0; c < brickCols; c++) {
+                for (let r = 0; r < brickRows; r++) {
+                    const b = bricks[c][r];
+                    if (b && b.status === 1) {
+                        drawVolumetric3DJellyBrick(b);
+                    }
+                }
+            }
+
+            drawItems();
+            drawPaddle();
+            balls.forEach(drawCandyBall);
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initBricks();
+        gameLoop();
+    </script>
+</body>
+</html>
